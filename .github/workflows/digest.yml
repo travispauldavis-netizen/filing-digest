@@ -1,0 +1,40 @@
+name: Daily SEC Filings Digest
+
+# This GitHub Actions workflow runs the daily digest script on a schedule
+# and whenever manually dispatched.  It installs Node.js, installs
+# dependencies, and then executes `daily-digest.js` with your configured
+# environment variables.  The schedule is set to 12:00 UTC on weekdays,
+# which corresponds to 8:00 a.m. Eastern Time (America/New_York) during
+# daylight savings.  Adjust the cron expression if you prefer another
+# delivery time.
+
+on:
+  schedule:
+    # At 12:00 UTC every Monday through Friday – adjust to taste.
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch: {}
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install @anthropic-ai/sdk nodemailer
+
+      - name: Run daily digest script
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL || secrets.GMAIL_USER }}
+          TICKERS: ${{ secrets.TICKERS || 'AAPL,MSFT' }}
+          DAYS: '60'
+        run: node daily-digest.js
