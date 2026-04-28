@@ -142,14 +142,29 @@ async function summariseFiling(text) {
   // Trim the text to a manageable length.  Anthropic models have input token
   // limits; long filings will be truncated to the first 15k characters.
   const input = text.slice(0, 15000);
-  const prompt = `\n\nHuman: Please provide a concise professional summary of the following SEC filing focusing on material events, earnings changes, risk updates, executive changes and any other key points that investors should know.\n\n${input}\n\nAssistant:`;
-  const response = await client.completions.create({
-    prompt,
+  // Construct a single user message containing our summarisation instructions and the
+  // truncated filing text.  The Messages API expects an array of messages where
+  // each item has a role ("user" or "assistant") and a content string.
+  const messages = [
+    {
+      role: 'user',
+      content: `Please provide a concise professional summary of the following SEC filing focusing on material events, earnings changes, risk updates, executive changes and any other key points that investors should know.\n\n${input}`,
+    },
+  ];
+  const response = await client.messages.create({
     model: 'claude-3-sonnet-20240229',
-    max_tokens_to_sample: 400,
+    messages,
+    max_tokens: 400,
     temperature: 0.2,
   });
-  return response.completion.trim();
+  // The response content is an array of message parts; concatenate any text parts.
+  const completion = Array.isArray(response.content)
+    ? response.content
+        .filter(part => part.type === 'text' && typeof part.text === 'string')
+        .map(part => part.text)
+        .join('')
+    : '';
+  return completion.trim();
 }
 
 /*
