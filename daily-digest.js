@@ -152,7 +152,7 @@ async function summariseFiling(text) {
     },
   ];
   const response = await client.messages.create({
-    model: 'claude-3-sonnet-20240229',
+model: 'claude-sonne-4-6',',
     messages,
     max_tokens: 400,
     temperature: 0.2,
