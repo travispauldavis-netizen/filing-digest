@@ -14,7 +14,7 @@
  *   GMAIL_USER         – your Gmail address (sender)
  *   GMAIL_APP_PASSWORD – an app password generated in your Google account
  *   RECIPIENT_EMAIL    – email address to receive the digest (default: same as GMAIL_USER)
-// TEST*   TICKERS            – comma‑separated list of stock tickers (e.g. "AAPL,MSFT,TSLA")
+ *   TICKERS            – comma‑separated list of stock tickers (e.g. "AAPL,MSFT,TSLA")
  *
  * Optional variables:
  *   DAYS               – number of days to look back for filings (default: 60)
@@ -151,20 +151,47 @@ async function summariseFiling(text) {
       content: `Please provide a concise professional summary of the following SEC filing focusing on material events, earnings changes, risk updates, executive changes and any other key points that investors should know.\n\n${input}`,
     },
   ];
-  const response = await client.messages.create({
-model: 'claude-sonne-4-6',',
-    messages,
-    max_tokens: 400,
-    temperature: 0.2,
-  });
-  // The response content is an array of message parts; concatenate any text parts.
-  const completion = Array.isArray(response.content)
-    ? response.content
-        .filter(part => part.type === 'text' && typeof part.text === 'string')
-        .map(part => part.text)
-        .join('')
-    : '';
-  return completion.trim();
+  // Allow the target model to be specified via environment variable.  Fall back
+  // to a current active model (Claude Sonnet 4.6) if none is provided.  See
+  // https://platform.claude.com/docs/en/about-claude/model-deprecations for
+  // the latest recommended models and retirement dates.
+  const defaultModel = 'claude-sonnet-4-6';
+  const model = process.env.ANTHROPIC_MODEL || defaultModel;
+  // Attempt to summarise using the chosen model.  If the model is not found
+  // (e.g. retired or unavailable), fall back to Claude Haiku 4.5.  If that
+  // also fails, rethrow the error so it is logged and the filing is skipped.
+  async function callWithModel(modelName) {
+    const response = await client.messages.create({
+      model: modelName,
+      messages,
+      max_tokens: 400,
+      temperature: 0.2,
+    });
+    // The response content is an array of message parts; concatenate any text parts.
+    return Array.isArray(response.content)
+      ? response.content
+          .filter(part => part.type === 'text' && typeof part.text === 'string')
+          .map(part => part.text)
+          .join('')
+      : '';
+  }
+  try {
+    const completion = await callWithModel(model);
+    return completion.trim();
+  } catch (err) {
+    // If the error indicates a model not found (HTTP 404), attempt fallback.
+    const message = err && err.message ? String(err.message) : '';
+    if (message.includes('model') && message.includes('not found')) {
+      const fallbackModel = 'claude-haiku-4-5-20251001';
+      try {
+        const completion = await callWithModel(fallbackModel);
+        return completion.trim();
+      } catch (fallbackErr) {
+        throw fallbackErr;
+      }
+    }
+    throw err;
+  }
 }
 
 /*
