@@ -14,7 +14,7 @@
  *   GMAIL_USER         – your Gmail address (sender)
  *   GMAIL_APP_PASSWORD – an app password generated in your Google account
  *   RECIPIENT_EMAIL    – email address to receive the digest (default: same as GMAIL_USER)
- *   TICKERS            – comma‑separated list of stock tickers (e.g. "AAPL,MSFT,TSLA")
+// TEST*   TICKERS            – comma‑separated list of stock tickers (e.g. "AAPL,MSFT,TSLA")
  *
  * Optional variables:
  *   DAYS               – number of days to look back for filings (default: 60)
